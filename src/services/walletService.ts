@@ -1,4 +1,5 @@
-import { WalletOption } from '../types/poll';
+import { isConnected, requestAccess, getAddress } from '@stellar/freighter-api';
+import { WalletOption } from '../types/ballot';
 
 // Supported Stellar Wallets list
 export const SUPPORTED_WALLETS: WalletOption[] = [
@@ -6,7 +7,7 @@ export const SUPPORTED_WALLETS: WalletOption[] = [
     id: 'freighter',
     name: 'Freighter Wallet',
     icon: '🚀',
-    installed: typeof window !== 'undefined' && 'freighter' in window,
+    installed: typeof window !== 'undefined' && ('freighter' in window || 'stargazer' in window),
     type: 'freighter',
     description: 'Official browser extension wallet for Stellar & Soroban.',
   },
@@ -14,7 +15,7 @@ export const SUPPORTED_WALLETS: WalletOption[] = [
     id: 'albedo',
     name: 'Albedo Link',
     icon: '🌌',
-    installed: true, // Albedo uses web popup flow
+    installed: true,
     type: 'albedo',
     description: 'Web-based sign-in and key manager for Stellar applications.',
   },
@@ -60,15 +61,51 @@ export const SUPPORTED_WALLETS: WalletOption[] = [
   },
 ];
 
-// Helper to check Freighter installation safely
-export async function isFreighterAvailable(): Promise<boolean> {
+// Real Freighter Connection Handler
+export async function connectFreighterWallet(): Promise<{ publicKey: string } | null> {
   try {
-    if (typeof window !== 'undefined' && (window as any).freighter) {
-      return true;
+    // Check if freighter extension is installed
+    const freighterCheck = await isConnected();
+    if (!freighterCheck || !freighterCheck.isConnected) {
+      if (typeof window === 'undefined' || !(window as any).freighter) {
+        throw new Error('FREIGHTER_NOT_INSTALLED');
+      }
     }
-    return false;
-  } catch {
-    return false;
+
+    // Request connection approval from user in Freighter extension popup
+    const accessObj = await requestAccess();
+    if (accessObj && (accessObj as any).error) {
+      throw new Error('USER_REJECTED');
+    }
+
+    let publicKey = accessObj?.address;
+
+    if (!publicKey) {
+      const addressObj = await getAddress();
+      if (addressObj && (addressObj as any).error) {
+        throw new Error('USER_REJECTED');
+      }
+      publicKey = addressObj?.address;
+    }
+
+    if (!publicKey) {
+      throw new Error('NO_PUBLIC_KEY');
+    }
+
+    return { publicKey };
+  } catch (err: any) {
+    if (err.message === 'FREIGHTER_NOT_INSTALLED' || err.message === 'USER_REJECTED') {
+      throw err;
+    }
+    if (typeof window !== 'undefined' && (window as any).freighter) {
+      try {
+        const pubKey = await (window as any).freighter.getPublicKey();
+        if (pubKey) return { publicKey: pubKey };
+      } catch {
+        throw new Error('USER_REJECTED');
+      }
+    }
+    throw err;
   }
 }
 
