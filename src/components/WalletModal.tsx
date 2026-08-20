@@ -1,6 +1,6 @@
 import React from 'react';
-import { X, Check, ExternalLink, ShieldCheck, Download, AlertCircle } from 'lucide-react';
-import { WalletOption } from '../types/poll';
+import { X, Check, ExternalLink, ShieldCheck, Download } from 'lucide-react';
+import { WalletOption } from '../types/ballot';
 import { SUPPORTED_WALLETS } from '../services/walletService';
 
 interface WalletModalProps {

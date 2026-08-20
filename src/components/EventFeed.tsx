@@ -1,10 +1,10 @@
 import React from 'react';
-import { PollEvent } from '../types/poll';
+import { VoteEvent } from '../types/ballot';
 import { STELLAR_CONFIG } from '../services/sorobanService';
-import { Activity, ExternalLink, Clock, UserCheck, ShieldCheck } from 'lucide-react';
+import { Activity, ExternalLink, Clock, UserCheck, PlusCircle } from 'lucide-react';
 
 interface EventFeedProps {
-  events: PollEvent[];
+  events: VoteEvent[];
 }
 
 export const EventFeed: React.FC<EventFeedProps> = ({ events }) => {
@@ -14,8 +14,8 @@ export const EventFeed: React.FC<EventFeedProps> = ({ events }) => {
         <div className="feed-title-wrap">
           <Activity className="text-cyan animate-pulse" size={20} />
           <div>
-            <h3 className="feed-title">Real-Time Soroban Contract Events</h3>
-            <p className="feed-subtitle">Live stream of on-chain vote events published by the smart contract.</p>
+            <h3 className="feed-title">BallotChain Contract Event Log</h3>
+            <p className="feed-subtitle">Live stream of on-chain vote and candidate registration events.</p>
           </div>
         </div>
         <span className="badge badge-event">
@@ -34,14 +34,24 @@ export const EventFeed: React.FC<EventFeedProps> = ({ events }) => {
             <div key={evt.id} className="event-item">
               <div className="event-item-left">
                 <div className="event-avatar">
-                  <UserCheck size={16} className="text-cyan" />
+                  {evt.type === 'candidate_registered' ? (
+                    <PlusCircle size={16} className="text-purple" />
+                  ) : (
+                    <UserCheck size={16} className="text-cyan" />
+                  )}
                 </div>
                 <div>
                   <div className="event-voter-row">
                     <span className="voter-pubkey">{evt.voter}</span>
-                    <span className="event-badge-voted">Voted</span>
+                    <span
+                      className={
+                        evt.type === 'candidate_registered' ? 'event-badge-reg' : 'event-badge-voted'
+                      }
+                    >
+                      {evt.type === 'candidate_registered' ? 'Candidate Proposed' : 'Voted'}
+                    </span>
                   </div>
-                  <p className="event-choice-label">"{evt.optionLabel}"</p>
+                  <p className="event-choice-label">"{evt.candidateName}"</p>
                 </div>
               </div>
 

@@ -1,6 +1,6 @@
 import React from 'react';
-import { Wallet, Sparkles, RefreshCw, CheckCircle2, ChevronDown } from 'lucide-react';
-import { WalletOption } from '../types/poll';
+import { Wallet, Vote, RefreshCw, CheckCircle2, ChevronDown, PlusCircle } from 'lucide-react';
+import { WalletOption } from '../types/ballot';
 
 interface HeaderProps {
   connectedWallet: WalletOption | null;
@@ -9,6 +9,7 @@ interface HeaderProps {
   onOpenWalletModal: () => void;
   onDisconnectWallet: () => void;
   onFundFriendbot: () => void;
+  onOpenRegisterModal: () => void;
   isFunding: boolean;
 }
 
@@ -19,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenWalletModal,
   onDisconnectWallet,
   onFundFriendbot,
+  onOpenRegisterModal,
   isFunding,
 }) => {
   const truncatedAddress = accountPublicKey
@@ -31,20 +33,25 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Brand Header */}
         <div className="brand-logo">
           <div className="logo-icon-wrap">
-            <Sparkles className="logo-icon text-cyan" />
+            <Vote className="logo-icon text-cyan" size={24} />
           </div>
           <div>
             <div className="brand-title-wrap">
-              <h1 className="brand-title">StellarPulse</h1>
+              <h1 className="brand-title">BallotChain</h1>
               <span className="badge badge-testnet">TESTNET</span>
               <span className="badge badge-belt">🟡 Level 2 Yellow Belt</span>
             </div>
-            <p className="brand-subtitle">Soroban Smart Contract & Multi-Wallet Live Poll Hub</p>
+            <p className="brand-subtitle">One-Vote-Per-Wallet Soroban Voting Protocol</p>
           </div>
         </div>
 
-        {/* Right Section: Wallet Status */}
+        {/* Right Section: Actions & Wallet Status */}
         <div className="header-actions">
+          <button onClick={onOpenRegisterModal} className="btn-register-candidate">
+            <PlusCircle size={16} />
+            <span>Register Candidate</span>
+          </button>
+
           {accountPublicKey && connectedWallet ? (
             <div className="wallet-connected-pill">
               <button 

@@ -1,7 +1,7 @@
 import React from 'react';
-import { TxStatus } from '../types/poll';
+import { TxStatus } from '../types/ballot';
 import { STELLAR_CONFIG } from '../services/sorobanService';
-import { CheckCircle2, AlertTriangle, ExternalLink, Clock, Loader2, ArrowRight } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, ExternalLink, Loader2, ArrowRight } from 'lucide-react';
 
 interface TransactionStatusProps {
   status: TxStatus;
@@ -44,7 +44,7 @@ export const TransactionStatus: React.FC<TransactionStatusProps> = ({ status, on
         )}
       </div>
 
-      {/* Visual Pipeline Steps */}
+      {/* Pipeline Steps */}
       <div className="tx-pipeline">
         <div className={`pipeline-step ${isSigning || isSubmitting || isSuccess ? 'complete' : ''}`}>
           <span className="step-num">1</span>

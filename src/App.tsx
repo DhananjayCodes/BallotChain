@@ -1,39 +1,45 @@
 import React, { useState } from 'react';
 import { Header } from './components/Header';
-import { PollCard } from './components/PollCard';
+import { VotingWindowBar } from './components/VotingWindowBar';
+import { CandidateGrid } from './components/CandidateGrid';
+import { RegisterCandidateModal } from './components/RegisterCandidateModal';
 import { TransactionStatus } from './components/TransactionStatus';
 import { ErrorShowcase } from './components/ErrorShowcase';
 import { EventFeed } from './components/EventFeed';
 import { ContractInfo } from './components/ContractInfo';
 import { WalletModal } from './components/WalletModal';
 
-import { PollData, PollEvent, TxStatus, WalletOption } from './types/poll';
+import { BallotData, VoteEvent, TxStatus, WalletOption, Candidate } from './types/ballot';
 import { SUPPORTED_WALLETS, getTestnetBalance, fundWithFriendbot } from './services/walletService';
-import { INITIAL_POLL_DATA, INITIAL_EVENTS, submitVoteToContract } from './services/sorobanService';
+import {
+  INITIAL_BALLOT_DATA,
+  INITIAL_VOTE_EVENTS,
+  submitVoteToContract,
+  registerCandidateOnContract,
+} from './services/sorobanService';
 
 export function App() {
-  const [pollData, setPollData] = useState<PollData>(INITIAL_POLL_DATA);
-  const [events, setEvents] = useState<PollEvent[]>(INITIAL_EVENTS);
-  const [connectedWallet, setConnectedWallet] = useState<WalletOption | null>(SUPPORTED_WALLETS[0]); // Default connected to Freighter
+  const [ballotData, setBallotData] = useState<BallotData>(INITIAL_BALLOT_DATA);
+  const [events, setEvents] = useState<VoteEvent[]>(INITIAL_VOTE_EVENTS);
+  const [connectedWallet, setConnectedWallet] = useState<WalletOption | null>(SUPPORTED_WALLETS[0]); // Freighter default
   const [accountPublicKey, setAccountPublicKey] = useState<string | null>(
     'GBX3K7QW49ZLPV2M8NR9YTX6A1K0S5E8H3F2J9C4M7L1P8V'
   );
   const [balance, setBalance] = useState<string>('1000.00');
   const [isWalletModalOpen, setIsWalletModalOpen] = useState<boolean>(false);
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState<boolean>(false);
   const [hasVoted, setHasVoted] = useState<boolean>(false);
-  const [userVotedOptionId, setUserVotedOptionId] = useState<number | null>(null);
+  const [userVotedCandidateId, setUserVotedCandidateId] = useState<number | null>(null);
   const [isFunding, setIsFunding] = useState<boolean>(false);
 
   const [txStatus, setTxStatus] = useState<TxStatus>({
     state: 'idle',
   });
 
-  // Handle Wallet Selection via StellarWalletsKit
   const handleSelectWallet = async (wallet: WalletOption) => {
     setConnectedWallet(wallet);
     setIsWalletModalOpen(false);
 
-    // Generate/Set a mock testnet public key for selected wallet
     const mockPubKey =
       wallet.type === 'freighter'
         ? 'GBX3K7QW49ZLPV2M8NR9YTX6A1K0S5E8H3F2J9C4M7L1P8V'
@@ -42,8 +48,6 @@ export function App() {
         : 'GDH4P9V1Z3X5C7V9B1N3M5L7K9J1H3F5D7S9A1Q3W';
 
     setAccountPublicKey(mockPubKey);
-
-    // Fetch balance
     const bal = await getTestnetBalance(mockPubKey);
     setBalance(bal);
   };
@@ -54,7 +58,6 @@ export function App() {
     setBalance('0.00');
   };
 
-  // Handle Friendbot Funding Trigger
   const handleFundFriendbot = async () => {
     if (!accountPublicKey) return;
     setIsFunding(true);
@@ -71,9 +74,10 @@ export function App() {
     }
   };
 
-  // Handle Vote Submission to Soroban Smart Contract
+  // Handle Candidate Vote Submission
   const handleVote = async (
-    optionId: number,
+    candidateId: number,
+    candidateName: string,
     forceErrorType?: 'wallet_not_installed' | 'user_rejected' | 'insufficient_balance' | 'rpc_error'
   ) => {
     if (!accountPublicKey || !connectedWallet) {
@@ -81,63 +85,84 @@ export function App() {
       return;
     }
 
-    // Step 1: Wallet Signing state
     setTxStatus({
       state: 'signing',
       message: `Awaiting signature authorization from ${connectedWallet.name}...`,
     });
 
-    // Step 2: Submit to Soroban Contract
     setTimeout(() => {
       setTxStatus({
         state: 'submitting',
-        message: 'Broadcasting signed transaction to Soroban Testnet RPC node...',
+        message: 'Broadcasting signed ballot transaction to Soroban Testnet RPC node...',
       });
     }, 1000);
 
     const result = await submitVoteToContract(
       accountPublicKey,
-      optionId,
+      candidateId,
       connectedWallet.type,
+      candidateName,
       forceErrorType
     );
 
     setTxStatus(result.status);
 
-    // On Success: Update state, add event, recalculate percentage
     if (result.status.state === 'success' && result.updatedEvent) {
       setHasVoted(true);
-      setUserVotedOptionId(optionId);
+      setUserVotedCandidateId(candidateId);
 
-      const updatedOptions = pollData.options.map((opt) => {
-        if (opt.id === optionId) {
-          return { ...opt, votes: opt.votes + 1 };
+      const updatedCandidates = ballotData.candidates.map((cand) => {
+        if (cand.id === candidateId) {
+          return { ...cand, votes: cand.votes + 1 };
         }
-        return opt;
+        return cand;
       });
 
-      const newTotal = pollData.totalVotes + 1;
+      const newTotal = ballotData.totalVotes + 1;
 
-      const recalculatedOptions = updatedOptions.map((opt) => ({
-        ...opt,
-        percentage: Math.round((opt.votes / newTotal) * 100),
+      const recalculatedCandidates = updatedCandidates.map((cand) => ({
+        ...cand,
+        percentage: Math.round((cand.votes / newTotal) * 100),
       }));
 
-      setPollData({
-        ...pollData,
+      setBallotData({
+        ...ballotData,
         totalVotes: newTotal,
-        options: recalculatedOptions,
+        candidates: recalculatedCandidates,
       });
 
       setEvents([result.updatedEvent, ...events]);
     }
   };
 
-  // Error Showcase Trigger Callback
+  // Handle Candidate Registration
+  const handleRegisterCandidate = async (name: string, party: string, bio: string) => {
+    if (!accountPublicKey || !connectedWallet) {
+      setIsWalletModalOpen(true);
+      return;
+    }
+
+    setTxStatus({
+      state: 'signing',
+      message: `Awaiting candidate proposal signature authorization from ${connectedWallet.name}...`,
+    });
+
+    const result = await registerCandidateOnContract(accountPublicKey, name, party, bio);
+    setTxStatus(result.status);
+
+    if (result.status.state === 'success' && result.newCandidate && result.updatedEvent) {
+      setBallotData({
+        ...ballotData,
+        candidates: [...ballotData.candidates, result.newCandidate],
+      });
+      setEvents([result.updatedEvent, ...events]);
+    }
+  };
+
   const handleTriggerError = (
     errorType: 'wallet_not_installed' | 'user_rejected' | 'insufficient_balance' | 'rpc_error'
   ) => {
-    handleVote(0, errorType);
+    handleVote(0, 'Soroban Core Protocol', errorType);
   };
 
   return (
@@ -150,37 +175,42 @@ export function App() {
         onOpenWalletModal={() => setIsWalletModalOpen(true)}
         onDisconnectWallet={handleDisconnectWallet}
         onFundFriendbot={handleFundFriendbot}
+        onOpenRegisterModal={() => setIsRegisterModalOpen(true)}
         isFunding={isFunding}
       />
 
       {/* Main Container */}
       <main className="app-container">
-        {/* Transaction Status Banner */}
-        <TransactionStatus
-          status={txStatus}
-          onClear={() => setTxStatus({ state: 'idle' })}
+        {/* Transaction Status Pipeline */}
+        <TransactionStatus status={txStatus} onClear={() => setTxStatus({ state: 'idle' })} />
+
+        {/* Time-Bound Voting Window Status Bar */}
+        <VotingWindowBar
+          votingWindow={ballotData.votingWindow}
+          totalVotes={ballotData.totalVotes}
         />
 
         <div className="main-grid">
-          {/* Main Voting Card */}
-          <PollCard
-            pollData={pollData}
-            onVote={(optionId) => handleVote(optionId)}
+          {/* Main Candidate Ballot Grid */}
+          <CandidateGrid
+            ballotData={ballotData}
+            onVote={(candId, candName) => handleVote(candId, candName)}
             txState={txStatus.state}
             hasVoted={hasVoted}
-            userVotedOptionId={userVotedOptionId}
+            userVotedCandidateId={userVotedCandidateId}
             isConnected={!!accountPublicKey}
             onConnectWallet={() => setIsWalletModalOpen(true)}
+            onOpenRegisterModal={() => setIsRegisterModalOpen(true)}
           />
 
-          {/* Error Handling Showcase Section */}
+          {/* Level 2 Error Handling Showcase Section */}
           <ErrorShowcase
             onTriggerError={handleTriggerError}
             onFundFriendbot={handleFundFriendbot}
             isFunding={isFunding}
           />
 
-          {/* Event Feed & Contract Specs Grid */}
+          {/* Real-time Event Log Feed & Contract Specs Grid */}
           <div className="secondary-grid">
             <EventFeed events={events} />
             <ContractInfo />
@@ -188,12 +218,18 @@ export function App() {
         </div>
       </main>
 
-      {/* Wallet Selection Modal */}
+      {/* Modals */}
       <WalletModal
         isOpen={isWalletModalOpen}
         onClose={() => setIsWalletModalOpen(false)}
         onSelectWallet={handleSelectWallet}
         activeWalletId={connectedWallet?.id || null}
+      />
+
+      <RegisterCandidateModal
+        isOpen={isRegisterModalOpen}
+        onClose={() => setIsRegisterModalOpen(false)}
+        onRegister={handleRegisterCandidate}
       />
     </div>
   );
