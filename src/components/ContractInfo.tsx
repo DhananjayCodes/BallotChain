@@ -18,7 +18,9 @@ export const ContractInfo: React.FC = () => {
           <FileCode2 className="text-purple" size={22} />
           <div>
             <h3 className="info-title">Soroban Smart Contract Specs</h3>
-            <p className="info-subtitle">Deployed on Stellar Testnet</p>
+            <p className="info-subtitle">
+              {STELLAR_CONFIG.isSimulationMode ? 'Local contract source + simulated frontend flow' : 'Deployed on Stellar Testnet'}
+            </p>
           </div>
         </div>
         <a
@@ -34,12 +36,18 @@ export const ContractInfo: React.FC = () => {
       <div className="contract-details-grid">
         {/* Contract Address */}
         <div className="contract-detail-box full-width">
-          <span className="detail-label">Deployed Contract ID (Soroban Testnet)</span>
+          <span className="detail-label">
+            {STELLAR_CONFIG.isSimulationMode ? 'Contract source path' : 'Deployed Contract ID (Soroban Testnet)'}
+          </span>
           <div className="copy-code-row">
-            <code className="contract-code">{STELLAR_CONFIG.contractId}</code>
-            <button onClick={handleCopy} className="btn-copy" title="Copy Contract ID">
-              {copied ? <Check size={14} className="text-cyan" /> : <Copy size={14} />}
-            </button>
+            <code className="contract-code">
+              {STELLAR_CONFIG.isSimulationMode ? 'contracts/live_poll/src/lib.rs' : STELLAR_CONFIG.contractId}
+            </code>
+            {!STELLAR_CONFIG.isSimulationMode && (
+              <button onClick={handleCopy} className="btn-copy" title="Copy Contract ID">
+                {copied ? <Check size={14} className="text-cyan" /> : <Copy size={14} />}
+              </button>
+            )}
           </div>
         </div>
 
@@ -49,7 +57,9 @@ export const ContractInfo: React.FC = () => {
             <Cpu size={14} className="text-muted" />
             <span>Contract state</span>
           </div>
-          <code className="code-sm">Live RPC reads enabled</code>
+          <code className="code-sm">
+            {STELLAR_CONFIG.isSimulationMode ? 'Local Rust contract + simulated browser actions' : 'Live RPC reads enabled'}
+          </code>
         </div>
 
         {/* Network & RPC */}

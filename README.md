@@ -4,7 +4,7 @@
 ![Soroban Smart Contract](https://img.shields.io/badge/Soroban-Rust%20Contract-purple?style=for-the-badge&logo=rust)
 ![Freighter Signing](https://img.shields.io/badge/Freighter-Transaction%20Signing-cyan?style=for-the-badge)
 
-**BallotChain** is a decentralized, one-vote-per-wallet voting protocol powered by **Soroban Smart Contracts** on Stellar Testnet. It uses Freighter to sign real vote and candidate-registration calls, then reads the election state back from the deployed contract.
+**BallotChain** includes a genuine custom Soroban voting contract at `contracts/live_poll/src/lib.rs`, but this frontend is intentionally designed to run in simulation mode unless a live testnet contract ID is provided via `VITE_SOROBAN_CONTRACT_ID`. In the default local build, voting and registration actions are simulated in the browser rather than invoking the on-chain contract, which keeps the app usable without a deployed contract while preserving the real Rust contract logic in the repo.
 
 Created for **Dhananjay Rawat** as part of the **Stellar Journey to Mastery: Monthly Builder Challenges (Level 2 - Yellow Belt Submission)**.
 
@@ -23,11 +23,11 @@ Created for **Dhananjay Rawat** as part of the **Stellar Journey to Mastery: Mon
 | **Project Name** | **BallotChain** |
 | **Developer** | Dhananjay Rawat |
 | **Challenge Level** | Level 2 - Yellow Belt Submission |
-| **Deployed Contract ID (Soroban Testnet)** | [`CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNQX554EE7ZMBYTXFE6X5W45WLS`](https://stellar.expert/explorer/testnet/contract/CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNQX554EE7ZMBYTXFE6X5W45WLS) |
+| **Deployed Contract ID (Soroban Testnet)** | Set with `VITE_SOROBAN_CONTRACT_ID` when deploying the real contract. Default local builds intentionally use simulation mode. |
 | **Contract transaction evidence** | Generated only after a submitted transaction is confirmed; the UI links the returned on-chain hash in Stellar Expert. |
 | **Wallet signer** | Freighter (`@stellar/freighter-api`) |
-| **Smart Contract Architecture** | Rust Soroban Contract (`contracts/live_poll/src/lib.rs`) |
-| **Network & Environment** | Stellar Testnet (`https://soroban-testnet.stellar.org`) |
+| **Smart Contract Architecture** | Real Rust Soroban contract at `contracts/live_poll/src/lib.rs` |
+| **Network & Environment** | Stellar Testnet (`https://soroban-testnet.stellar.org`) for live mode; local simulation otherwise |
 
 ---
 
