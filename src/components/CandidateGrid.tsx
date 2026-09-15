@@ -51,7 +51,15 @@ export const CandidateGrid: React.FC<CandidateGridProps> = ({
 
       {/* Candidates List */}
       <div className="candidates-list">
-        {ballotData.candidates.map((candidate) => {
+        {ballotData.candidates.length === 0 ? (
+          <div className="empty-ballot-state" role="status">
+            <BarChart3 size={28} />
+            <div>
+              <h3>Election data is loading</h3>
+              <p>The ballot will appear as soon as the Soroban Testnet RPC returns the contract state. You can retry by refreshing this page.</p>
+            </div>
+          </div>
+        ) : ballotData.candidates.map((candidate) => {
           const isSelected = selectedCandidateId === candidate.id;
           const isUserVotedThis = userVotedCandidateId === candidate.id;
 
@@ -122,7 +130,7 @@ export const CandidateGrid: React.FC<CandidateGridProps> = ({
         {!isConnected ? (
           <button onClick={onConnectWallet} className="btn-vote-submit glow-cyan">
             <Lock size={18} />
-            Connect Wallet to Vote (StellarWalletsKit)
+            Connect Freighter to Vote
           </button>
         ) : hasVoted ? (
           <div className="voted-success-banner">

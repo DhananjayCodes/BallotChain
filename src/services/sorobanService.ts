@@ -1,254 +1,120 @@
-import { BallotData, VoteEvent, TxStatus, Candidate } from '../types/ballot';
+import { Account, Contract, Keypair, Networks, Transaction, TransactionBuilder, nativeToScVal, rpc as SorobanRpc, scValToNative } from '@stellar/stellar-sdk';
+import { signTransaction } from '@stellar/freighter-api';
+import { BallotData, Candidate, TxStatus, VoteEvent } from '../types/ballot';
 
-// Stellar Testnet Configuration
-export const STELLAR_CONFIG = {
-  network: 'TESTNET',
-  networkPassphrase: 'Test SDF Network ; July 2015',
-  rpcUrl: 'https://soroban-testnet.stellar.org',
-  horizonUrl: 'https://horizon-testnet.stellar.org',
-  contractId: 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNQX554EE7ZMBYTXFE6X5W45WLS',
-  wasmHash: 'b4a07e923f15c4013149a37bd48bf6e568cdb91176b91176b91176b91176b911',
-  explorerUrl: 'https://stellar.expert/explorer/testnet',
+export const STELLAR_CONFIG = { network: 'TESTNET', networkPassphrase: Networks.TESTNET, rpcUrl: 'https://soroban-testnet.stellar.org', horizonUrl: 'https://horizon-testnet.stellar.org', contractId: 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNQX554EE7ZMBYTXFE6X5W45WLS', wasmHash: 'Verified on-chain contract', explorerUrl: 'https://stellar.expert/explorer/testnet' };
+const rpc = new SorobanRpc.Server(STELLAR_CONFIG.rpcUrl);
+const CONTRACT_ID_PATTERN = /^C[1-9A-HJ-NP-Za-km-z]{55}$/;
+let contractInstance: Contract | null = null;
+
+const getContract = (): Contract | null => {
+  if (!STELLAR_CONFIG.contractId || !CONTRACT_ID_PATTERN.test(STELLAR_CONFIG.contractId)) {
+    return null;
+  }
+
+  if (!contractInstance) {
+    try {
+      contractInstance = new Contract(STELLAR_CONFIG.contractId);
+    } catch {
+      return null;
+    }
+  }
+
+  return contractInstance;
 };
 
-const NOW_MS = Date.now();
-const END_TIME_MS = NOW_MS + 7 * 24 * 60 * 60 * 1000; // 7 days from now
-
-// Initial BallotChain State
-export const INITIAL_BALLOT_DATA: BallotData = {
-  title: 'BallotChain: Stellar Community Governance & Innovation Election 2026',
-  description:
-    'A decentralized, tamper-proof, one-vote-per-wallet voting protocol powered by Soroban Smart Contracts. Cast your vote for the priority ecosystem candidate below.',
-  totalVotes: 342,
+export const DEMO_BALLOT_DATA: BallotData = {
+  title: 'BallotChain election',
+  description: 'Preview mode: the configured Soroban contract is unavailable, so the app is showing a local demo ballot while keeping the UI interactive.',
+  totalVotes: 42,
   votingWindow: {
-    startTime: new Date(NOW_MS - 2 * 24 * 60 * 60 * 1000).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }),
-    endTime: new Date(END_TIME_MS).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }),
-    endTimestampMs: END_TIME_MS,
+    startTime: 'Demo window',
+    endTime: 'Preview only',
+    endTimestampMs: 0,
     isOpen: true,
-    timeRemainingFormatted: '6d 23h 45m',
+    timeRemainingFormatted: 'Live preview',
   },
   candidates: [
-    {
-      id: 0,
-      name: 'Soroban Core Protocol',
-      party: 'Smart Contract Infrastructure',
-      bio: 'Scaling Rust-based WebAssembly smart contracts with sub-second finality and formal state proofs on Stellar Testnet & Mainnet.',
-      avatar: '⚙️',
-      votes: 148,
-      percentage: 43,
-    },
-    {
-      id: 1,
-      name: 'StellarWallets Alliance',
-      party: 'Multi-Wallet Compatibility Layer',
-      bio: 'Unified SDK connecting Freighter, Albedo, xBull, Rabet, Lobstr, and WebAuthn Passkeys into a single seamless sign-in modal.',
-      avatar: '👛',
-      votes: 96,
-      percentage: 28,
-    },
-    {
-      id: 2,
-      name: 'Anchored DEX Protocol',
-      party: 'Decentralized Liquidity & Orderbooks',
-      bio: 'Native on-chain orderbooks combined with Soroban automated market makers (AMMs) for zero-slippage cross-border asset swaps.',
-      avatar: '📈',
-      votes: 62,
-      percentage: 18,
-    },
-    {
-      id: 3,
-      name: 'GreenLedger Zero-Gas',
-      party: 'Gas Fee Abstraction & Sustainability',
-      bio: 'Sponsoring resource fees for new users with automated fee-bump contracts and verifiable carbon-neutral transaction proofs.',
-      avatar: '🌱',
-      votes: 36,
-      percentage: 11,
-    },
+    { id: 0, name: 'Soroban Core Lab', party: 'Smart Contract Infrastructure', bio: 'Scaling rust-based sub-second state execution on Stellar.', avatar: '⚙️', votes: 14, percentage: 33 },
+    { id: 1, name: 'StellarWallets Alliance', party: 'Multi-Wallet Ecosystem', bio: 'Unifying web3 browser extensions and mobile signers.', avatar: '👛', votes: 18, percentage: 43 },
+    { id: 2, name: 'Open Governance Guild', party: 'Community Coordination', bio: 'Building transparent tooling and on-chain participation for communities.', avatar: '🌱', votes: 10, percentage: 24 },
   ],
   contractId: STELLAR_CONFIG.contractId,
   wasmHash: STELLAR_CONFIG.wasmHash,
   network: STELLAR_CONFIG.network,
 };
 
-// Initial Events Stream
-export const INITIAL_VOTE_EVENTS: VoteEvent[] = [
-  {
-    id: 'evt-1',
-    voter: 'GBX...7K9A',
-    candidateId: 0,
-    candidateName: 'Soroban Core Protocol',
-    timestamp: '3 mins ago',
-    txHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-    type: 'vote',
-  },
-  {
-    id: 'evt-2',
-    voter: 'GCP...3M1L',
-    candidateId: 1,
-    candidateName: 'StellarWallets Alliance',
-    timestamp: '8 mins ago',
-    txHash: '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
-    type: 'vote',
-  },
-  {
-    id: 'evt-3',
-    voter: 'GDH...9P4V',
-    candidateId: 0,
-    candidateName: 'Soroban Core Protocol',
-    timestamp: '14 mins ago',
-    txHash: '47bce5c74f589f4867dbd57e9ca9f808817b006098fc16ce03913706c0744e30',
-    type: 'vote',
-  },
-  {
-    id: 'evt-4',
-    voter: 'GAK...4L9Q',
-    candidateId: 3,
-    candidateName: 'GreenLedger Zero-Gas',
-    timestamp: '25 mins ago',
-    txHash: '13a3b5c74f589f4867dbd57e9ca9f808817b006098fc16ce03913706c0744e12',
-    type: 'candidate_registered',
-  },
-];
+export const INITIAL_BALLOT_DATA: BallotData = { ...DEMO_BALLOT_DATA, description: 'Loading election data from the deployed Soroban contract…', totalVotes: 0, votingWindow: { startTime: '—', endTime: '—', endTimestampMs: 0, isOpen: false, timeRemainingFormatted: 'Loading…' }, candidates: [] };
+export const INITIAL_VOTE_EVENTS: VoteEvent[] = [];
+type Reporter = (status: TxStatus) => void;
 
-export function generateTxHash(): string {
-  const chars = '0123456789abcdef';
-  let hash = '';
-  for (let i = 0; i < 64; i++) {
-    hash += chars.charAt(Math.floor(Math.random() * chars.length));
+function call(method: string, args: ReturnType<typeof nativeToScVal>[] = []) {
+  const contract = getContract();
+  if (!contract) {
+    throw new Error('Soroban contract is unavailable in this browser session.');
   }
-  return hash;
+
+  const source = new Account(Keypair.random().publicKey(), '0');
+  return new TransactionBuilder(source, { fee: '100', networkPassphrase: STELLAR_CONFIG.networkPassphrase }).addOperation(contract.call(method, ...args)).setTimeout(30).build();
 }
-
-// Simulates voting on the Soroban Contract with realistic timing & error handling triggers
-export async function submitVoteToContract(
-  voterPublicKey: string,
-  candidateId: number,
-  walletType: string,
-  candidateName: string,
-  forceErrorType?: 'wallet_not_installed' | 'user_rejected' | 'insufficient_balance' | 'rpc_error'
-): Promise<{ status: TxStatus; updatedEvent?: VoteEvent }> {
-  
-  if (forceErrorType === 'wallet_not_installed') {
-    await new Promise((res) => setTimeout(res, 400));
-    return {
-      status: {
-        state: 'error',
-        errorType: 'wallet_not_installed',
-        errorMessage: `Wallet Extension Error: ${walletType.toUpperCase()} browser extension is not installed or unreachable.`,
-      },
-    };
+async function read(method: string, args: ReturnType<typeof nativeToScVal>[] = []) {
+  const contract = getContract();
+  if (!contract) {
+    throw new Error('Soroban contract is unavailable in this browser session.');
   }
 
-  if (forceErrorType === 'user_rejected') {
-    await new Promise((res) => setTimeout(res, 800));
-    return {
-      status: {
-        state: 'error',
-        errorType: 'user_rejected',
-        errorMessage: 'User Rejected Error: Transaction signature request was declined in wallet modal.',
-      },
-    };
-  }
-
-  if (forceErrorType === 'insufficient_balance') {
-    await new Promise((res) => setTimeout(res, 1000));
-    return {
-      status: {
-        state: 'error',
-        errorType: 'insufficient_balance',
-        errorMessage: 'Insufficient Balance Error: Account requires testnet XLM to pay Soroban resource & transaction fees.',
-      },
-    };
-  }
-
-  if (forceErrorType === 'rpc_error') {
-    await new Promise((res) => setTimeout(res, 1200));
-    return {
-      status: {
-        state: 'error',
-        errorType: 'rpc_error',
-        errorMessage: 'RPC Network Error: Soroban RPC node timeout. Host node did not respond within 10000ms.',
-      },
-    };
-  }
-
-  // Normal Flow
-  await new Promise((res) => setTimeout(res, 1200));
-  const txHash = generateTxHash();
-  await new Promise((res) => setTimeout(res, 1400));
-
-  const truncatedVoter = `${voterPublicKey.substring(0, 3)}...${voterPublicKey.substring(voterPublicKey.length - 4)}`;
-
-  const newEvent: VoteEvent = {
-    id: `evt-${Date.now()}`,
-    voter: truncatedVoter,
-    candidateId,
-    candidateName,
-    timestamp: 'Just now',
-    txHash,
-    type: 'vote',
-  };
-
-  return {
-    status: {
-      state: 'success',
-      txHash,
-      message: 'Vote successfully recorded on BallotChain Soroban Smart Contract!',
-    },
-    updatedEvent: newEvent,
-  };
+  const response = await rpc.simulateTransaction(call(method, args));
+  if ('error' in response) throw new Error(response.error);
+  if (!response.result?.retval) throw new Error(`${method} returned no value`);
+  return scValToNative(response.result.retval);
 }
+const avatar = (id: number) => ['⚙️', '👛', '📈', '🌱', '🏅', '🗳️'][id % 6];
 
-// Register Candidate on Soroban Smart Contract
-export async function registerCandidateOnContract(
-  adminPublicKey: string,
-  name: string,
-  party: string,
-  bio: string
-): Promise<{ status: TxStatus; newCandidate?: Candidate; updatedEvent?: VoteEvent }> {
-  await new Promise((res) => setTimeout(res, 1000));
-  const txHash = generateTxHash();
-  await new Promise((res) => setTimeout(res, 1200));
+/** Reads all displayed election data from the deployed Soroban contract. */
+export async function loadBallotDataFromContract(): Promise<BallotData> {
+  try {
+    const [title, count, totalVotes, isOpen] = await Promise.all([read('get_title'), read('get_candidate_count'), read('get_total_votes'), read('is_voting_open')]);
+    const candidates = await Promise.all(Array.from({ length: Number(count) }, async (_, id) => {
+      const [raw, votes] = await Promise.all([read('get_candidate', [nativeToScVal(id, { type: 'u32' })]), read('get_votes', [nativeToScVal(id, { type: 'u32' })])]);
+      const data = raw as { id: number; name: string; party: string; bio: string };
+      return { id: Number(data.id), name: String(data.name), party: String(data.party), bio: String(data.bio), avatar: avatar(id), votes: Number(votes), percentage: Number(totalVotes) ? Math.round(Number(votes) * 100 / Number(totalVotes)) : 0 } satisfies Candidate;
+    }));
+    return { ...INITIAL_BALLOT_DATA, title: String(title), totalVotes: Number(totalVotes), candidates, votingWindow: { startTime: 'On-chain election', endTime: 'Enforced by contract', endTimestampMs: 0, isOpen: Boolean(isOpen), timeRemainingFormatted: Boolean(isOpen) ? 'Open on-chain' : 'Closed on-chain' } };
+  } catch {
+    return DEMO_BALLOT_DATA;
+  }
+}
+function failure(error: unknown): TxStatus {
+  const message = error instanceof Error ? error.message : String(error); const lower = message.toLowerCase();
+  if (lower.includes('reject') || lower.includes('declin') || lower.includes('cancel')) return { state: 'error', errorType: 'user_rejected', errorMessage: 'Transaction signature was declined in Freighter.' };
+  if (lower.includes('insufficient') || lower.includes('underfunded') || lower.includes('funded')) return { state: 'error', errorType: 'insufficient_balance', errorMessage: `Transaction could not be funded: ${message}` };
+  return { state: 'error', errorType: 'rpc_error', errorMessage: `Soroban transaction failed: ${message}` };
+}
+async function invoke(voter: string, method: string, args: ReturnType<typeof nativeToScVal>[], report: Reporter): Promise<string> {
+  const contract = getContract();
+  if (!contract) {
+    throw new Error('Soroban contract is unavailable in this browser session.');
+  }
 
-  const truncatedVoter = `${adminPublicKey.substring(0, 3)}...${adminPublicKey.substring(adminPublicKey.length - 4)}`;
-
-  const newCandidate: Candidate = {
-    id: Date.now(),
-    name,
-    party,
-    bio,
-    avatar: '🏅',
-    votes: 0,
-    percentage: 0,
-  };
-
-  const newEvent: VoteEvent = {
-    id: `evt-${Date.now()}`,
-    voter: truncatedVoter,
-    candidateId: newCandidate.id,
-    candidateName: name,
-    timestamp: 'Just now',
-    txHash,
-    type: 'candidate_registered',
-  };
-
-  return {
-    status: {
-      state: 'success',
-      txHash,
-      message: `Candidate "${name}" successfully registered on BallotChain contract!`,
-    },
-    newCandidate,
-    updatedEvent: newEvent,
-  };
+  try {
+    const accountResponse = await fetch(`${STELLAR_CONFIG.horizonUrl}/accounts/${voter}`);
+    if (!accountResponse.ok) throw new Error(accountResponse.status === 404 ? 'Account is not funded on Testnet' : 'Unable to load account sequence number');
+    const account = new Account(voter, (await accountResponse.json() as { sequence: string }).sequence);
+    const raw = new TransactionBuilder(account, { fee: '100', networkPassphrase: STELLAR_CONFIG.networkPassphrase }).addOperation(contract.call(method, ...args)).setTimeout(120).build();
+    const prepared = await rpc.prepareTransaction(raw);
+    report({ state: 'signing', message: 'Approve this Soroban transaction in Freighter…' });
+    const signed = await signTransaction(prepared.toXDR(), { address: voter, networkPassphrase: STELLAR_CONFIG.networkPassphrase });
+    if (signed.error || !signed.signedTxXdr) throw new Error(signed.error?.message || 'Transaction was not signed');
+    report({ state: 'submitting', message: 'Submitting signed transaction to Soroban Testnet…' });
+    const submitted = await rpc.sendTransaction(TransactionBuilder.fromXDR(signed.signedTxXdr, STELLAR_CONFIG.networkPassphrase));
+    if (submitted.status === 'ERROR') throw new Error(submitted.errorResult?.toString() || 'Soroban rejected the transaction');
+    for (let i = 0; i < 20; i += 1) { const result = await rpc.getTransaction(submitted.hash); if (result.status === 'SUCCESS') return submitted.hash; if (result.status === 'FAILED') throw new Error('Contract execution failed'); await new Promise(resolve => window.setTimeout(resolve, 1000)); }
+    throw new Error('Timed out waiting for transaction confirmation');
+  } catch (error) { throw failure(error); }
+}
+export async function submitVoteToContract(voter: string, candidateId: number, candidateName: string, report: Reporter) {
+  try { const txHash = await invoke(voter, 'vote', [nativeToScVal(voter, { type: 'address' }), nativeToScVal(candidateId, { type: 'u32' })], report); return { status: { state: 'success', txHash, message: 'Vote confirmed by the Soroban contract.' } as TxStatus, updatedEvent: { id: txHash, voter: `${voter.slice(0, 3)}…${voter.slice(-4)}`, candidateId, candidateName, timestamp: 'Just now', txHash, type: 'vote' as const } }; } catch (status) { return { status: status as TxStatus }; }
+}
+export async function registerCandidateOnContract(voter: string, name: string, party: string, bio: string, report: Reporter) {
+  try { const txHash = await invoke(voter, 'register_candidate', [nativeToScVal(voter, { type: 'address' }), nativeToScVal(name, { type: 'string' }), nativeToScVal(party, { type: 'string' }), nativeToScVal(bio, { type: 'string' })], report); return { status: { state: 'success', txHash, message: `Candidate “${name}” was registered on-chain.` } as TxStatus, updatedEvent: { id: txHash, voter: `${voter.slice(0, 3)}…${voter.slice(-4)}`, candidateId: -1, candidateName: name, timestamp: 'Just now', txHash, type: 'candidate_registered' as const } }; } catch (status) { return { status: status as TxStatus }; }
 }

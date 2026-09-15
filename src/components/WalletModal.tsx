@@ -26,7 +26,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
           <div>
             <h2 className="modal-title">Select Stellar Wallet</h2>
             <p className="modal-subtitle">
-              Powered by <strong>StellarWalletsKit</strong> • Connect to Stellar Testnet
+              Connect Freighter to sign on Stellar Testnet
             </p>
           </div>
           <button onClick={onClose} className="btn-close">
@@ -75,7 +75,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
         <div className="modal-footer">
           <div className="modal-footer-note">
             <ShieldCheck size={16} className="text-cyan" />
-            <span>StellarWalletsKit standard security wrapper • Testnet environment</span>
+            <span>Freighter transaction signing • Testnet environment</span>
           </div>
           <a
             href="https://www.freighter.app/"

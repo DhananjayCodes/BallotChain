@@ -83,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({
           ) : (
             <button onClick={onOpenWalletModal} className="btn-connect-wallet glow-effect">
               <Wallet size={18} />
-              <span>Connect Wallet (StellarWalletsKit)</span>
+              <span>Connect Freighter Wallet</span>
             </button>
           )}
         </div>

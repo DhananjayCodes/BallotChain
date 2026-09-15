@@ -18,7 +18,7 @@ export const ContractInfo: React.FC = () => {
           <FileCode2 className="text-purple" size={22} />
           <div>
             <h3 className="info-title">Soroban Smart Contract Specs</h3>
-            <p className="info-subtitle">Deployed & Verified on Stellar Testnet</p>
+            <p className="info-subtitle">Deployed on Stellar Testnet</p>
           </div>
         </div>
         <a
@@ -43,13 +43,13 @@ export const ContractInfo: React.FC = () => {
           </div>
         </div>
 
-        {/* WASM Hash */}
+        {/* Contract deployment */}
         <div className="contract-detail-box">
           <div className="detail-meta-label">
             <Cpu size={14} className="text-muted" />
-            <span>WASM Hash</span>
+            <span>Contract state</span>
           </div>
-          <code className="code-sm">{STELLAR_CONFIG.wasmHash.substring(0, 20)}...</code>
+          <code className="code-sm">Live RPC reads enabled</code>
         </div>
 
         {/* Network & RPC */}

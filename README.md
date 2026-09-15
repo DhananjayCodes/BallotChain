@@ -2,9 +2,9 @@
 
 ![BallotChain Level 2 Challenge](https://img.shields.io/badge/BallotChain-Level%202%20Yellow%20Belt-yellow?style=for-the-badge&logo=stellar)
 ![Soroban Smart Contract](https://img.shields.io/badge/Soroban-Rust%20Contract-purple?style=for-the-badge&logo=rust)
-![StellarWalletsKit Multi-Wallet](https://img.shields.io/badge/Multi--Wallet-StellarWalletsKit-cyan?style=for-the-badge)
+![Freighter Signing](https://img.shields.io/badge/Freighter-Transaction%20Signing-cyan?style=for-the-badge)
 
-**BallotChain** is a decentralized, one-vote-per-wallet voting protocol powered by **Soroban Smart Contracts** on Stellar Testnet. It features candidate registration, live percentage results, time-bound voting windows, multi-wallet connectivity via **StellarWalletsKit** & **Freighter API**, and comprehensive error handling.
+**BallotChain** is a decentralized, one-vote-per-wallet voting protocol powered by **Soroban Smart Contracts** on Stellar Testnet. It uses Freighter to sign real vote and candidate-registration calls, then reads the election state back from the deployed contract.
 
 Created for **Dhananjay Rawat** as part of the **Stellar Journey to Mastery: Monthly Builder Challenges (Level 2 - Yellow Belt Submission)**.
 
@@ -24,8 +24,8 @@ Created for **Dhananjay Rawat** as part of the **Stellar Journey to Mastery: Mon
 | **Developer** | Dhananjay Rawat |
 | **Challenge Level** | Level 2 - Yellow Belt Submission |
 | **Deployed Contract ID (Soroban Testnet)** | [`CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNQX554EE7ZMBYTXFE6X5W45WLS`](https://stellar.expert/explorer/testnet/contract/CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNQX554EE7ZMBYTXFE6X5W45WLS) |
-| **Verifiable Contract Call Tx Hash** | [`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`](https://stellar.expert/explorer/testnet/tx/e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855) |
-| **Multi-Wallet Connector** | `StellarWalletsKit` (`@creit.tech/stellar-wallets-kit`) & `@stellar/freighter-api` |
+| **Contract transaction evidence** | Generated only after a submitted transaction is confirmed; the UI links the returned on-chain hash in Stellar Expert. |
+| **Wallet signer** | Freighter (`@stellar/freighter-api`) |
 | **Smart Contract Architecture** | Rust Soroban Contract (`contracts/live_poll/src/lib.rs`) |
 | **Network & Environment** | Stellar Testnet (`https://soroban-testnet.stellar.org`) |
 
@@ -61,19 +61,12 @@ Created for **Dhananjay Rawat** as part of the **Stellar Journey to Mastery: Mon
 ## 🔥 BallotChain Features & Level 2 Requirements Checklist
 
 ### 1. 🗳️ Candidate Registration & Time-Bound Voting Window
-- **Candidate Registration**: Authorized wallets can propose new candidates with Name, Organization/Party, and Proposal Manifesto directly on the Soroban contract.
+- **Candidate Registration**: Freighter signs a `register_candidate` invocation; the UI refreshes the candidate list from contract storage once it confirms.
 - **Time-Bound Voting Window**: Dynamic countdown timer displaying active window start time, end time, and live status.
 - **1-Vote-Per-Wallet Enforcement**: Enforces `has_voted(voter)` check on-chain.
 
-### 2. 👛 Multi-Wallet Integration (`StellarWalletsKit` & `@stellar/freighter-api`)
-- Connects to:
-  - **Freighter Wallet** (Direct browser extension API popup)
-  - **Albedo Link**
-  - **xBull Wallet**
-  - **Rabet Wallet**
-  - **LOBSTR Wallet**
-  - **Hana Wallet**
-  - **Stellar Testnet Demo Wallet** (Pre-funded)
+### 2. 👛 Wallet Signing (`@stellar/freighter-api`)
+- **Freighter Wallet**: Direct browser-extension connection and signing for real Testnet Soroban transactions.
 
 ### 3. 🚨 Handled 3 Explicit Error Types
 - **`WalletNotInstalledError`**: Extension missing detection & install guidance.
@@ -82,7 +75,7 @@ Created for **Dhananjay Rawat** as part of the **Stellar Journey to Mastery: Mon
 
 ### 4. ⚡ Real-Time Event Sync & Transaction Status Tracker
 - **Visual Status Pipeline**: `Idle` ➔ `Wallet Sign` ➔ `Testnet Consensus` ➔ `Confirmed / Failed`.
-- **Event Feed**: Live event log stream for contract votes and candidate registrations with verifiable Stellar Explorer links.
+- **Event Feed**: Shows only transactions confirmed during the current session, with their returned Stellar Explorer links.
 
 ---
 

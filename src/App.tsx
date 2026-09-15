@@ -4,7 +4,6 @@ import { VotingWindowBar } from './components/VotingWindowBar';
 import { CandidateGrid } from './components/CandidateGrid';
 import { RegisterCandidateModal } from './components/RegisterCandidateModal';
 import { TransactionStatus } from './components/TransactionStatus';
-import { ErrorShowcase } from './components/ErrorShowcase';
 import { EventFeed } from './components/EventFeed';
 import { ContractInfo } from './components/ContractInfo';
 import { WalletModal } from './components/WalletModal';
@@ -19,6 +18,7 @@ import {
 import {
   INITIAL_BALLOT_DATA,
   INITIAL_VOTE_EVENTS,
+  loadBallotDataFromContract,
   submitVoteToContract,
   registerCandidateOnContract,
 } from './services/sorobanService';
@@ -57,6 +57,16 @@ export function App() {
       }
     }
     checkExistingConnection();
+  }, []);
+
+  useEffect(() => {
+    loadBallotDataFromContract()
+      .then(setBallotData)
+      .catch((error) => setTxStatus({
+        state: 'error',
+        errorType: 'rpc_error',
+        errorMessage: `Could not load the deployed contract: ${error instanceof Error ? error.message : String(error)}`,
+      }));
   }, []);
 
   // Wallet Connection Handler
@@ -100,21 +110,7 @@ export function App() {
       return;
     }
 
-    // For Demo or Web Wallets (Albedo, xBull, Demo)
-    setConnectedWallet(wallet);
-    const mockPubKey =
-      wallet.type === 'albedo'
-        ? 'GCP9R3M1L7V4K2B8P0X9Y5Z1A3C5E7G9I1K3M5O7Q9S'
-        : 'GDH4P9V1Z3X5C7V9B1N3M5L7K9J1H3F5D7S9A1Q3W';
-
-    setAccountPublicKey(mockPubKey);
-    const bal = await getTestnetBalance(mockPubKey);
-    setBalance(bal === '0.00 (Unfunded)' ? '10000.00' : bal);
-
-    setTxStatus({
-      state: 'success',
-      message: `Connected to ${wallet.name}: ${mockPubKey.substring(0, 6)}...${mockPubKey.substring(mockPubKey.length - 4)}`,
-    });
+    setTxStatus({ state: 'error', errorType: 'wallet_not_installed', errorMessage: `${wallet.name} is not configured for transaction signing. Connect Freighter to submit a real Soroban transaction.` });
   };
 
   const handleDisconnectWallet = () => {
@@ -146,31 +142,17 @@ export function App() {
   const handleVote = async (
     candidateId: number,
     candidateName: string,
-    forceErrorType?: 'wallet_not_installed' | 'user_rejected' | 'insufficient_balance' | 'rpc_error'
   ) => {
     if (!accountPublicKey || !connectedWallet) {
       setIsWalletModalOpen(true);
       return;
     }
 
-    setTxStatus({
-      state: 'signing',
-      message: `Awaiting signature authorization from ${connectedWallet.name}...`,
-    });
-
-    setTimeout(() => {
-      setTxStatus({
-        state: 'submitting',
-        message: 'Broadcasting signed ballot transaction to Soroban Testnet RPC node...',
-      });
-    }, 1000);
-
     const result = await submitVoteToContract(
       accountPublicKey,
       candidateId,
-      connectedWallet.type,
       candidateName,
-      forceErrorType
+      setTxStatus
     );
 
     setTxStatus(result.status);
@@ -179,27 +161,8 @@ export function App() {
       setHasVoted(true);
       setUserVotedCandidateId(candidateId);
 
-      const updatedCandidates = ballotData.candidates.map((cand) => {
-        if (cand.id === candidateId) {
-          return { ...cand, votes: cand.votes + 1 };
-        }
-        return cand;
-      });
-
-      const newTotal = ballotData.totalVotes + 1;
-
-      const recalculatedCandidates = updatedCandidates.map((cand) => ({
-        ...cand,
-        percentage: Math.round((cand.votes / newTotal) * 100),
-      }));
-
-      setBallotData({
-        ...ballotData,
-        totalVotes: newTotal,
-        candidates: recalculatedCandidates,
-      });
-
       setEvents([result.updatedEvent, ...events]);
+      loadBallotDataFromContract().then(setBallotData).catch(() => undefined);
     }
   };
 
@@ -209,27 +172,13 @@ export function App() {
       return;
     }
 
-    setTxStatus({
-      state: 'signing',
-      message: `Awaiting candidate proposal signature authorization from ${connectedWallet.name}...`,
-    });
-
-    const result = await registerCandidateOnContract(accountPublicKey, name, party, bio);
+    const result = await registerCandidateOnContract(accountPublicKey, name, party, bio, setTxStatus);
     setTxStatus(result.status);
 
-    if (result.status.state === 'success' && result.newCandidate && result.updatedEvent) {
-      setBallotData({
-        ...ballotData,
-        candidates: [...ballotData.candidates, result.newCandidate],
-      });
+    if (result.status.state === 'success' && result.updatedEvent) {
       setEvents([result.updatedEvent, ...events]);
+      loadBallotDataFromContract().then(setBallotData).catch(() => undefined);
     }
-  };
-
-  const handleTriggerError = (
-    errorType: 'wallet_not_installed' | 'user_rejected' | 'insufficient_balance' | 'rpc_error'
-  ) => {
-    handleVote(0, 'Soroban Core Protocol', errorType);
   };
 
   return (
@@ -268,13 +217,6 @@ export function App() {
             isConnected={!!accountPublicKey}
             onConnectWallet={() => setIsWalletModalOpen(true)}
             onOpenRegisterModal={() => setIsRegisterModalOpen(true)}
-          />
-
-          {/* Level 2 Error Handling Showcase Section */}
-          <ErrorShowcase
-            onTriggerError={handleTriggerError}
-            onFundFriendbot={handleFundFriendbot}
-            isFunding={isFunding}
           />
 
           {/* Real-time Event Log Feed & Contract Specs Grid */}
